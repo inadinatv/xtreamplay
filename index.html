@@ -98,7 +98,7 @@ video { width: 100%; height: 100%; object-fit: contain; }
                     </div>
                     <div class="video-inner">
                         <div id="videoOverlay" class="vid-overlay">✦ YAYIN BAŞLATILIYOR ✦</div>
-                        <video id="videoPlayer" controls crossorigin="anonymous" playsinline></video>
+                        <video id="videoPlayer" controls playsinline poster=""></video>
                     </div>
                     <div class="epg-display" id="epgDisplay">⏣ Bir yayın seçin</div>
                 </div>
@@ -130,13 +130,10 @@ function showToast(message, isSuccess = true) {
     setTimeout(() => toast.remove(), 2500);
 }
 
-// ==================== API'DEN PANELLERİ ÇEK (MOBİL HATA TESTLİ) ====================
+// ==================== API'DEN PANELLERİ ÇEK ====================
 async function loadPanelsFromAPI() {
     try {
-        // GitHub Raw linkiniz (Deponuzun PUBLIC olması şarttır)
         const githubRawUrl = "https://raw.githubusercontent.com/inadinatv/xtreamplay/main/panels.json";
-        
-        // Önbelleği kırmak için
         const fetchUrl = `${githubRawUrl}?t=${new Date().getTime()}`;
         
         showToast("Sunucu aranıyor...", true);
@@ -147,11 +144,9 @@ async function loadPanelsFromAPI() {
             panels = await response.json();
             showToast("Veriler başarıyla çekildi!", true);
         } else {
-            // EĞER LİNK YANLIŞSA VEYA DEPO GİZLİ (PRIVATE) İSE EKRANA UYARI VERİR
             alert(`BAĞLANTI HATASI!\nGitHub Hata Kodu: ${response.status}\n\nÇözüm: GitHub deponuzun (repository) Ayarlarından 'Private' (Gizli) olan görünürlüğü 'Public' (Herkese Açık) yapmalısınız.`);
         }
     } catch(e) {
-        // İNTERNET YOKSA VEYA MOBİL UYGULAMA ENGELLİYORSA BURAYA DÜŞER
         alert(`SİSTEM HATASI (Failed to fetch):\n\n${e.message}\n\nBu hata telefonunuzdaki HTML okuyucu uygulamanın güvenliğinden kaynaklanır. Dosyayı Vercel'e yükleyip link üzerinden test etmelisiniz.`);
     }
     
@@ -159,7 +154,7 @@ async function loadPanelsFromAPI() {
     
     const panelKeys = Object.keys(panels);
     if (panelKeys.length > 0) {
-        switchPanel(panelKeys[0]); // İlk paneli otomatik seç
+        switchPanel(panelKeys[0]);
     } else {
         document.getElementById('browserList').innerHTML = '<div style="padding:20px;text-align:center;color:#6c7a91;">📭 Sistemde aktif sunucu bulunmamaktadır.</div>';
     }
@@ -284,17 +279,35 @@ function isAdultContent(text) { if (!text) return false; return ADULT_KEYWORDS.s
 class IPTVBrowser {
     constructor() { this.config = null; }
     
-    // GÜNCELLEME: Corsproxy.io mobilde sorun yarattığı için allorigins proxy'si ile değiştirildi.
+    // YENİ GÜÇLENDİRİLMİŞ FETCH SİSTEMİ VE HATA YAKALAYICI
     async fetchSafe(url) { 
         try { 
+            // 1. Önce doğrudan bağlanmayı dener
             const r = await fetch(url); 
-            if (!r.ok) throw new Error(); 
-            return await r.json(); 
+            const text = await r.text();
+            try {
+                return JSON.parse(text); // Veriyi JSON'a çevir
+            } catch(e) {
+                throw new Error("DirectConnectionFailed");
+            }
         } catch(e) { 
-            const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`; 
-            const r = await fetch(proxy); 
-            if (!r.ok) throw new Error(); 
-            return await r.json(); 
+            // 2. Doğrudan bağlantı başarısız olursa (CORS engeli) yeni Proxy'yi dener
+            const proxy = `https://api.codetabs.com/v1/proxy?quest=${url}`; 
+            
+            try {
+                const r = await fetch(proxy); 
+                const text = await r.text(); 
+                
+                try {
+                    return JSON.parse(text); // Gelen veriyi okumayı dene
+                } catch(parseError) {
+                    // EĞER SUNUCU KANAL YERİNE HTML HATA SAYFASI GÖNDERİRSE EKRANA YAZDIR
+                    alert("⚠️ IPTV Sunucusu reddetti veya hata sayfası gönderdi!\n\nGelen Yanıt:\n" + text.substring(0, 200) + "...");
+                    throw new Error("Sunucu geçersiz veri (HTML) döndürdü.");
+                }
+            } catch(proxyError) {
+                throw new Error("Proxy bağlantısı kurulamadı.");
+            }
         } 
     }
     
