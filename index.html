@@ -108,7 +108,6 @@ video { width: 100%; height: 100%; object-fit: contain; }
     </div>
 </div>
 
-<!-- +18 Şifre Modal -->
 <div id="passwordModal" class="modal">
     <div class="modal-content" id="modalContent"></div>
 </div>
@@ -132,11 +131,15 @@ function showToast(message, isSuccess = true) {
     setTimeout(() => toast.remove(), 2500);
 }
 
-// ==================== API'DEN PANELLERİ ÇEK (GITHUB JSON) ====================
+// ==================== API'DEN PANELLERİ ÇEK (GITHUB RAW - GÜNCELLENDİ) ====================
 async function loadPanelsFromAPI() {
     try {
-        // Cache yapmasını önlemek için zaman damgası ekledik
-        const response = await fetch('panels.json?t=' + new Date().getTime());
+        // Vercel cache'ini beklemeden doğrudan GitHub'dan çekmek için Raw URL eklendi
+        const githubRawUrl = "https://raw.githubusercontent.com/inadinatv/xtreamplay/main/panels.json";
+        
+        // Cache yapmasını kesin olarak önlemek için zaman damgası eklendi
+        const response = await fetch(`${githubRawUrl}?t=${new Date().getTime()}`);
+        
         if(response.ok) {
             panels = await response.json();
         } else {
