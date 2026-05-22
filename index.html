@@ -8,7 +8,6 @@
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
 <style>
-/* CSS AYNEN KORUNDU, GEREKSİZ ADMİN KISIMLARI SİLİNDİ */
 :root {
     --bg-deep: #0a0c10; --bg-elevated: #11141c; --bg-surface: rgba(18, 22, 32, 0.92);
     --glass-border: rgba(66, 153, 225, 0.25); --panel1-accent: #00e5ff;
@@ -131,22 +130,29 @@ function showToast(message, isSuccess = true) {
     setTimeout(() => toast.remove(), 2500);
 }
 
-// ==================== API'DEN PANELLERİ ÇEK (GITHUB RAW - GÜNCELLENDİ) ====================
+// ==================== API'DEN PANELLERİ ÇEK (MOBİL HATA TESTLİ) ====================
 async function loadPanelsFromAPI() {
     try {
-        // Vercel cache'ini beklemeden doğrudan GitHub'dan çekmek için Raw URL eklendi
+        // GitHub Raw linkiniz (Deponuzun PUBLIC olması şarttır)
         const githubRawUrl = "https://raw.githubusercontent.com/inadinatv/xtreamplay/main/panels.json";
         
-        // Cache yapmasını kesin olarak önlemek için zaman damgası eklendi
-        const response = await fetch(`${githubRawUrl}?t=${new Date().getTime()}`);
+        // Önbelleği kırmak için
+        const fetchUrl = `${githubRawUrl}?t=${new Date().getTime()}`;
+        
+        showToast("Sunucu aranıyor...", true);
+
+        const response = await fetch(fetchUrl);
         
         if(response.ok) {
             panels = await response.json();
+            showToast("Veriler başarıyla çekildi!", true);
         } else {
-            console.error("Panel yüklenemedi!");
+            // EĞER LİNK YANLIŞSA VEYA DEPO GİZLİ (PRIVATE) İSE EKRANA UYARI VERİR
+            alert(`BAĞLANTI HATASI!\nGitHub Hata Kodu: ${response.status}\n\nÇözüm: GitHub deponuzun (repository) Ayarlarından 'Private' (Gizli) olan görünürlüğü 'Public' (Herkese Açık) yapmalısınız.`);
         }
     } catch(e) {
-        console.error("JSON Çekme Hatası:", e);
+        // İNTERNET YOKSA VEYA MOBİL UYGULAMA ENGELLİYORSA BURAYA DÜŞER
+        alert(`SİSTEM HATASI (Failed to fetch):\n\n${e.message}\n\nBu hata telefonunuzdaki HTML okuyucu uygulamanın güvenliğinden kaynaklanır. Dosyayı Vercel'e yükleyip link üzerinden test etmelisiniz.`);
     }
     
     renderPanelButtons();
@@ -277,7 +283,21 @@ function isAdultContent(text) { if (!text) return false; return ADULT_KEYWORDS.s
 // ==================== IPTV Browser Sınıfı ====================
 class IPTVBrowser {
     constructor() { this.config = null; }
-    async fetchSafe(url) { try { const r = await fetch(url); if (!r.ok) throw new Error(); return await r.json(); } catch(e) { const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`; const r = await fetch(proxy); if (!r.ok) throw new Error(); return await r.json(); } }
+    
+    // GÜNCELLEME: Corsproxy.io mobilde sorun yarattığı için allorigins proxy'si ile değiştirildi.
+    async fetchSafe(url) { 
+        try { 
+            const r = await fetch(url); 
+            if (!r.ok) throw new Error(); 
+            return await r.json(); 
+        } catch(e) { 
+            const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`; 
+            const r = await fetch(proxy); 
+            if (!r.ok) throw new Error(); 
+            return await r.json(); 
+        } 
+    }
+    
     async loadType(type) {
         if (!this.config) { document.getElementById('browserList').innerHTML = '<div style="padding:20px;text-align:center;color:#ff8a7a;">⚠️ Sunucu seçilmedi.</div>'; return; }
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
